@@ -1,4 +1,3 @@
-
 // Global variables
 let engine, scene, camera, sensorData = {};
 let machineGroup, currentMachine = 'robot';
@@ -24,7 +23,8 @@ function initBabylonScene() {
     // Enhanced camera
     camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 15, BABYLON.Vector3.Zero(), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControl(canvas, true); // Fixed: was attachControls
+    // Attach controls properly
+    camera.attachControl(canvas, true);
     camera.minZ = 0.1;
     camera.wheelPrecision = 50;
 
@@ -136,7 +136,7 @@ function createEnhancedMachine() {
 
 function createAdvancedRoboticArm() {
     // Create realistic 6-DOF robotic arm based on the GitHub repository design
-    
+
     // Base platform
     const basePlatform = BABYLON.MeshBuilder.CreateCylinder("basePlatform", {
         height: 0.3, 
@@ -313,7 +313,7 @@ function createGripper(parent) {
         finger.position.set((i - 0.5) * 0.3, 0.6, 0);
         finger.parent = gripperPalm;
         finger.material = gripperMaterial;
-        
+
         // Animate gripper opening/closing
         rotatingParts.push({
             mesh: finger, 
@@ -654,7 +654,7 @@ function createAssemblyStation() {
     // Enhanced assembly arms with joints
     for (let i = 0; i < 6; i++) {
         const angle = (i / 6) * Math.PI * 2;
-        
+
         // Arm base
         const armBase = BABYLON.MeshBuilder.CreateCylinder("armBase" + i, {
             height: 0.8, 
