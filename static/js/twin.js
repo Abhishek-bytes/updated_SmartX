@@ -1,3 +1,4 @@
+
 // Global variables
 let engine, scene, camera, sensorData = {};
 let machineGroup, currentMachine = 'robot';
@@ -23,7 +24,7 @@ function initBabylonScene() {
     // Enhanced camera
     camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 15, BABYLON.Vector3.Zero(), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControl(canvas, true);
+    camera.attachControl(canvas, true); // Fixed: was attachControls
     camera.minZ = 0.1;
     camera.wheelPrecision = 50;
 
@@ -52,7 +53,19 @@ function initBabylonScene() {
 }
 
 function setupVR() {
-    // VR initialization remains the same
+    // VR initialization - basic setup
+    try {
+        if (scene.createDefaultXRExperienceAsync) {
+            scene.createDefaultXRExperienceAsync().then((xrExperience) => {
+                vrHelper = xrExperience;
+                console.log("VR initialized successfully");
+            }).catch((error) => {
+                console.log("VR not supported:", error);
+            });
+        }
+    } catch (error) {
+        console.log("VR setup error:", error);
+    }
 }
 
 function setupEnhancedLighting() {
@@ -66,9 +79,13 @@ function setupEnhancedLighting() {
     directionalLight.position = new BABYLON.Vector3(0, 10, 0);
 
     // Enable shadows
-    const shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
-    shadowGenerator.useBlurExponentialShadowMap = true;
-    shadowGenerator.blurKernel = 32;
+    try {
+        const shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
+        shadowGenerator.useBlurExponentialShadowMap = true;
+        shadowGenerator.blurKernel = 32;
+    } catch (error) {
+        console.log("Shadow setup error:", error);
+    }
 }
 
 function createEnhancedMachine() {
@@ -156,7 +173,237 @@ function createRoboticArm() {
     rotatingParts.push({mesh: endEffector, axis: 'x', speed: 0.03});
 }
 
-// Other machine creation functions remain similar but ensure proper parenting to machineGroup
+function createCNCMachine() {
+    // CNC Base
+    const base = BABYLON.MeshBuilder.CreateBox("cncBase", {width: 3, height: 0.5, depth: 2}, scene);
+    base.position.y = 0.25;
+    base.parent = machineGroup;
+
+    const baseMaterial = new BABYLON.StandardMaterial("cncBaseMaterial", scene);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
+    base.material = baseMaterial;
+
+    // Spindle housing
+    const housing = BABYLON.MeshBuilder.CreateBox("housing", {width: 0.8, height: 1.5, depth: 0.8}, scene);
+    housing.position.set(0, 1.25, 0);
+    housing.parent = machineGroup;
+    housing.material = baseMaterial;
+
+    // Rotating spindle
+    const spindle = BABYLON.MeshBuilder.CreateCylinder("spindle", {height: 1, diameter: 0.1}, scene);
+    spindle.position.set(0, 0.75, 0);
+    spindle.parent = machineGroup;
+
+    const spindleMaterial = new BABYLON.StandardMaterial("spindleMaterial", scene);
+    spindleMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
+    spindle.material = spindleMaterial;
+    rotatingParts.push({mesh: spindle, axis: 'y', speed: 0.3});
+
+    // Work table
+    const table = BABYLON.MeshBuilder.CreateBox("table", {width: 2, height: 0.2, depth: 1.5}, scene);
+    table.position.y = 0.6;
+    table.parent = machineGroup;
+
+    const tableMaterial = new BABYLON.StandardMaterial("tableMaterial", scene);
+    tableMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.6);
+    table.material = tableMaterial;
+}
+
+function createWindTurbine() {
+    // Tower
+    const tower = BABYLON.MeshBuilder.CreateCylinder("tower", {height: 8, diameterTop: 0.8, diameterBottom: 1.2}, scene);
+    tower.position.y = 4;
+    tower.parent = machineGroup;
+
+    const towerMaterial = new BABYLON.StandardMaterial("towerMaterial", scene);
+    towerMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+    tower.material = towerMaterial;
+
+    // Nacelle
+    const nacelle = BABYLON.MeshBuilder.CreateBox("nacelle", {width: 3, height: 1, depth: 1}, scene);
+    nacelle.position.y = 8;
+    nacelle.parent = machineGroup;
+    nacelle.material = towerMaterial;
+
+    // Hub
+    const hub = BABYLON.MeshBuilder.CreateSphere("hub", {diameter: 0.8}, scene);
+    hub.position = new BABYLON.Vector3(1.5, 8, 0);
+    hub.parent = machineGroup;
+    rotatingParts.push({mesh: hub, axis: 'x', speed: 0.1});
+
+    // Blades
+    for (let i = 0; i < 3; i++) {
+        const blade = BABYLON.MeshBuilder.CreateBox("blade" + i, {width: 0.1, height: 4, depth: 0.5}, scene);
+        blade.position = new BABYLON.Vector3(1.5, 10, 0);
+        blade.rotation.x = (i * Math.PI * 2 / 3);
+        blade.parent = hub;
+
+        const bladeMaterial = new BABYLON.StandardMaterial("bladeMaterial", scene);
+        bladeMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+        blade.material = bladeMaterial;
+    }
+}
+
+function createConveyorSystem() {
+    // Belt
+    const belt = BABYLON.MeshBuilder.CreateBox("belt", {width: 6, height: 0.2, depth: 1}, scene);
+    belt.position.y = 0.6;
+    belt.parent = machineGroup;
+
+    const beltMaterial = new BABYLON.StandardMaterial("beltMaterial", scene);
+    beltMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    belt.material = beltMaterial;
+
+    // Rollers
+    for (let i = 0; i < 7; i++) {
+        const roller = BABYLON.MeshBuilder.CreateCylinder("roller" + i, {height: 1.2, diameter: 0.2}, scene);
+        roller.position.set(-2.5 + i * 0.8, 0.5, 0);
+        roller.rotation.z = Math.PI / 2;
+        roller.parent = machineGroup;
+
+        const rollerMaterial = new BABYLON.StandardMaterial("rollerMaterial", scene);
+        rollerMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
+        roller.material = rollerMaterial;
+        rotatingParts.push({mesh: roller, axis: 'z', speed: 0.05});
+    }
+
+    // Moving packages
+    for (let i = 0; i < 3; i++) {
+        const package = BABYLON.MeshBuilder.CreateBox("package" + i, {width: 0.3, height: 0.3, depth: 0.3}, scene);
+        package.position.set(-2 + i * 1.5, 0.85, 0);
+        package.parent = machineGroup;
+
+        const packageMaterial = new BABYLON.StandardMaterial("packageMaterial", scene);
+        packageMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.5, 0.2);
+        package.material = packageMaterial;
+        rotatingParts.push({mesh: package, axis: 'move', speed: 0.02});
+    }
+}
+
+function createAssemblyStation() {
+    // Platform
+    const platform = BABYLON.MeshBuilder.CreateBox("platform", {width: 2.5, height: 0.3, depth: 2.5}, scene);
+    platform.position.y = 0.15;
+    platform.parent = machineGroup;
+
+    const platformMaterial = new BABYLON.StandardMaterial("platformMaterial", scene);
+    platformMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
+    platform.material = platformMaterial;
+
+    // Assembly arms
+    for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const armBase = BABYLON.MeshBuilder.CreateCylinder("armBase" + i, {height: 0.5, diameter: 0.2}, scene);
+        armBase.position.set(Math.cos(angle) * 0.8, 0.55, Math.sin(angle) * 0.8);
+        armBase.parent = machineGroup;
+
+        const arm = BABYLON.MeshBuilder.CreateBox("arm" + i, {width: 0.8, height: 0.1, depth: 0.1}, scene);
+        arm.position.set(Math.cos(angle) * 1.2, 0.8, Math.sin(angle) * 1.2);
+        arm.parent = machineGroup;
+
+        const armMaterial = new BABYLON.StandardMaterial("armMaterial", scene);
+        armMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.3, 0.8);
+        arm.material = armMaterial;
+        armBase.material = armMaterial;
+
+        rotatingParts.push({mesh: arm, axis: 'y', speed: 0.02 + i * 0.01});
+    }
+
+    // Central assembly point
+    const center = BABYLON.MeshBuilder.CreateCylinder("center", {height: 0.3, diameter: 0.4}, scene);
+    center.position.y = 0.45;
+    center.parent = machineGroup;
+
+    const centerMaterial = new BABYLON.StandardMaterial("centerMaterial", scene);
+    centerMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
+    center.material = centerMaterial;
+    rotatingParts.push({mesh: center, axis: 'y', speed: 0.08});
+}
+
+function createHydraulicPress() {
+    // Frame
+    const frame = BABYLON.MeshBuilder.CreateBox("frame", {width: 2, height: 3, depth: 1.5}, scene);
+    frame.position.y = 1.5;
+    frame.parent = machineGroup;
+
+    const frameMaterial = new BABYLON.StandardMaterial("frameMaterial", scene);
+    frameMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+    frame.material = frameMaterial;
+
+    // Hydraulic cylinder
+    const cylinder = BABYLON.MeshBuilder.CreateCylinder("cylinder", {height: 1.5, diameter: 0.4}, scene);
+    cylinder.position.set(0, 2.5, 0);
+    cylinder.parent = machineGroup;
+
+    const cylinderMaterial = new BABYLON.StandardMaterial("cylinderMaterial", scene);
+    cylinderMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
+    cylinder.material = cylinderMaterial;
+
+    // Press head (moving part)
+    const head = BABYLON.MeshBuilder.CreateBox("head", {width: 1.5, height: 0.3, depth: 1.2}, scene);
+    head.position.set(0, 1.8, 0);
+    head.parent = machineGroup;
+
+    const headMaterial = new BABYLON.StandardMaterial("headMaterial", scene);
+    headMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
+    head.material = headMaterial;
+    rotatingParts.push({mesh: head, axis: 'move', speed: 0.01, oscillate: true, originalY: 1.8});
+
+    // Base plate
+    const baseplate = BABYLON.MeshBuilder.CreateBox("baseplate", {width: 1.8, height: 0.2, depth: 1.4}, scene);
+    baseplate.position.y = 0.6;
+    baseplate.parent = machineGroup;
+
+    const baseMaterial = new BABYLON.StandardMaterial("baseMaterial", scene);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.5);
+    baseplate.material = baseMaterial;
+}
+
+function createChemicalReactor() {
+    // Main reactor vessel
+    const vessel = BABYLON.MeshBuilder.CreateCylinder("vessel", {height: 4, diameter: 2.5}, scene);
+    vessel.position.y = 2;
+    vessel.parent = machineGroup;
+
+    const vesselMaterial = new BABYLON.StandardMaterial("vesselMaterial", scene);
+    vesselMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+    vessel.material = vesselMaterial;
+
+    // Stirrer
+    const stirrer = BABYLON.MeshBuilder.CreateCylinder("stirrer", {height: 3.5, diameter: 0.1}, scene);
+    stirrer.position.y = 2;
+    stirrer.parent = machineGroup;
+
+    const stirrerMaterial = new BABYLON.StandardMaterial("stirrerMaterial", scene);
+    stirrerMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    stirrer.material = stirrerMaterial;
+    rotatingParts.push({mesh: stirrer, axis: 'y', speed: 0.15});
+
+    // Stirrer blades
+    for (let i = 0; i < 4; i++) {
+        const blade = BABYLON.MeshBuilder.CreateBox("stirrerBlade" + i, {width: 0.8, height: 0.1, depth: 0.05}, scene);
+        blade.position.set(0, 0.5 + i * 0.8, 0);
+        blade.rotation.y = (i * Math.PI / 2);
+        blade.parent = stirrer;
+
+        const bladeMaterial = new BABYLON.StandardMaterial("bladeMaterial", scene);
+        bladeMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        blade.material = bladeMaterial;
+    }
+
+    // Pipes
+    for (let i = 0; i < 3; i++) {
+        const pipe = BABYLON.MeshBuilder.CreateCylinder("pipe" + i, {height: 1, diameter: 0.2}, scene);
+        const angle = (i / 3) * Math.PI * 2;
+        pipe.position.set(Math.cos(angle) * 1.5, 3 + i * 0.3, Math.sin(angle) * 1.5);
+        pipe.rotation.z = Math.PI / 2;
+        pipe.parent = machineGroup;
+
+        const pipeMaterial = new BABYLON.StandardMaterial("pipeMaterial", scene);
+        pipeMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.6, 0.3);
+        pipe.material = pipeMaterial;
+    }
+}
 
 function createEnhancedGround() {
     if (ground) ground.dispose();
@@ -196,6 +443,18 @@ function animateMachine() {
     updateSensorEffects();
 }
 
+function updateSensorEffects() {
+    // Add visual effects based on sensor data
+    if (sensorData.vibration > 0.8 && machineGroup) {
+        const vibrationIntensity = (sensorData.vibration - 0.8) * 0.5;
+        machineGroup.position.x = Math.sin(Date.now() * 0.01) * vibrationIntensity;
+        machineGroup.position.z = Math.cos(Date.now() * 0.01) * vibrationIntensity;
+    } else if (machineGroup) {
+        machineGroup.position.x = 0;
+        machineGroup.position.z = 0;
+    }
+}
+
 function updatePerformanceDisplay() {
     document.getElementById('fpsDisplay').textContent = Math.round(engine.getFps());
     document.getElementById('drawCallsDisplay').textContent = scene.getActiveMeshes().length;
@@ -218,7 +477,16 @@ function setupEventListeners() {
 
     // VR toggle
     document.getElementById('toggleVR').addEventListener('click', function() {
-        // VR implementation remains the same
+        if (vrHelper && vrHelper.baseExperience) {
+            vrHelper.baseExperience.enterXRAsync("immersive-vr", "local-floor").then(() => {
+                console.log("Entered VR mode");
+            }).catch((error) => {
+                console.log("VR entry failed:", error);
+                simulateVRMode();
+            });
+        } else {
+            simulateVRMode();
+        }
     });
 
     // Graphics controls
@@ -255,6 +523,14 @@ function setupEventListeners() {
     document.getElementById('topView').addEventListener('click', () => setView('top'));
     document.getElementById('sideView').addEventListener('click', () => setView('side'));
     document.getElementById('isoView').addEventListener('click', () => setView('iso'));
+}
+
+function simulateVRMode() {
+    // Simulate VR by changing camera position and FOV
+    camera.fov = Math.PI / 2;
+    camera.position = new BABYLON.Vector3(0, 2, -5);
+    camera.setTarget(new BABYLON.Vector3(0, 1, 0));
+    alert("VR Mode Simulated! Use mouse to look around.");
 }
 
 function switchMachine(machineType) {
@@ -297,7 +573,7 @@ function startDataUpdates() {
 
 async function updateSensorData() {
     try {
-        // Simulated sensor data
+        // Simulated sensor data since API might not be available
         sensorData = {
             temperature: 75 + Math.random() * 10,
             pressure: 1.2 + Math.random() * 0.5,
@@ -337,12 +613,5 @@ function updateSensorDisplay(data) {
 
 function updateSensorVisualization(data) {
     // Add visual effects based on sensor data
-    if (data.vibration > 0.8 && machineGroup) {
-        const vibrationIntensity = (data.vibration - 0.8) * 0.5;
-        machineGroup.position.x = Math.sin(Date.now() * 0.01) * vibrationIntensity;
-        machineGroup.position.z = Math.cos(Date.now() * 0.01) * vibrationIntensity;
-    } else {
-        machineGroup.position.x = 0;
-        machineGroup.position.z = 0;
-    }
+    updateSensorEffects();
 }
