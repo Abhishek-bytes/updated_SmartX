@@ -1,4 +1,3 @@
-
 // Global variables
 let engine, scene, camera, sensorData = {};
 let machineGroup, currentMachine = 'robot';
@@ -131,10 +130,11 @@ function createRoboticArm() {
     base.position.y = 0.5;
     base.parent = machineGroup;
 
-    // Material
+    // Enhanced material - brighter colors for visibility
     const baseMaterial = new BABYLON.StandardMaterial("baseMaterial", scene);
-    baseMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
-    baseMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.5, 1.0);
+    baseMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+    baseMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
     base.material = baseMaterial;
 
     // Rotating base
@@ -152,8 +152,9 @@ function createRoboticArm() {
         segment.parent = machineGroup;
 
         const segmentMaterial = new BABYLON.StandardMaterial("segmentMaterial" + i, scene);
-        segmentMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
-        segmentMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+        segmentMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+        segmentMaterial.specularColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+        segmentMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.1);
         segment.material = segmentMaterial;
 
         rotatingParts.push({mesh: segment, axis: 'z', speed: 0.01 + i * 0.005});
