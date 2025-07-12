@@ -495,9 +495,13 @@ function createTimeBlocks() {
 
 // Handle workspace changes
 function onWorkspaceChange(event) {
-    generateCodePreview();
-    updateWorkspaceStats();
-    updateExportButtons();
+    // Debounce updates to prevent performance issues
+    clearTimeout(window.blocklyUpdateTimeout);
+    window.blocklyUpdateTimeout = setTimeout(() => {
+        generateCodePreview();
+        updateWorkspaceStats();
+        updateExportButtons();
+    }, 100);
 }
 
 // Generate enhanced code preview
@@ -754,22 +758,30 @@ if __name__ == "__main__":
     }
 }
 
-// Update workspace statistics
+// Update workspace statistics with error handling
 function updateWorkspaceStats() {
-    const blocks = workspace.getAllBlocks();
-    const blockCount = blocks.length;
-    const codeLines = generatedCode.split('\n').filter(line => line.trim()).length;
-    
-    let complexity = 'Simple';
-    if (blockCount > 30) complexity = 'Complex';
-    else if (blockCount > 15) complexity = 'Moderate';
-    
-    workspaceStats = { blocks: blockCount, lines: codeLines, complexity };
-    
-    // Update display
-    document.getElementById('blockCount').textContent = blockCount;
-    document.getElementById('codeLines').textContent = codeLines;
-    document.getElementById('complexity').textContent = complexity;
+    try {
+        const blocks = workspace.getAllBlocks(false);
+        const blockCount = blocks.length;
+        const codeLines = generatedCode ? generatedCode.split('\n').filter(line => line.trim()).length : 0;
+        
+        let complexity = 'Simple';
+        if (blockCount > 30) complexity = 'Complex';
+        else if (blockCount > 15) complexity = 'Moderate';
+        
+        workspaceStats = { blocks: blockCount, lines: codeLines, complexity };
+        
+        // Update display with null checks
+        const blockCountElement = document.getElementById('blockCount');
+        const codeLinesElement = document.getElementById('codeLines');
+        const complexityElement = document.getElementById('complexity');
+        
+        if (blockCountElement) blockCountElement.textContent = blockCount;
+        if (codeLinesElement) codeLinesElement.textContent = codeLines;
+        if (complexityElement) complexityElement.textContent = complexity;
+    } catch (error) {
+        console.error('Error updating workspace stats:', error);
+    }
 }
 
 // Enhanced workspace operations

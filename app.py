@@ -323,10 +323,12 @@ def twin_page():
 @app.route("/api/twin-data")
 @login_required
 def twin_data():
-    """API endpoint for 3D twin sensor data"""
-    stored_data = get_latest_sensor_data()
-    
-    if stored_data:
+    """Enhanced API endpoint for 3D twin sensor data with machine type support"""
+    try:
+        machine_type = request.args.get('machine', 'robot')
+        stored_data = get_latest_sensor_data()
+        
+        if stored_data:
         data = {
             "temperature": stored_data.get("temperature", 75),
             "pressure": stored_data.get("pressure", 1.5),
@@ -338,14 +340,30 @@ def twin_data():
             "alerts": []
         }
     else:
-        # Generate realistic random sensor data
-        base_temp = 75
-        temp_variation = random.gauss(0, 8)
-        temperature = max(60, min(100, base_temp + temp_variation))
+        # Generate machine-specific realistic sensor data
+        machine_type = request.args.get('machine', 'robot')
         
-        base_pressure = 1.5
+        # Base parameters vary by machine type
+        machine_configs = {
+            'robot': {'temp_base': 75, 'pressure_base': 1.5, 'rpm_base': 1800},
+            'cnc': {'temp_base': 85, 'pressure_base': 2.0, 'rpm_base': 2500},
+            'turbine': {'temp_base': 65, 'pressure_base': 1.2, 'rpm_base': 1200},
+            'conveyor': {'temp_base': 70, 'pressure_base': 1.0, 'rpm_base': 800},
+            'assembly': {'temp_base': 72, 'pressure_base': 1.3, 'rpm_base': 1500},
+            'press': {'temp_base': 80, 'pressure_base': 2.5, 'rpm_base': 600},
+            'reactor': {'temp_base': 90, 'pressure_base': 1.8, 'rpm_base': 300}
+        }
+        
+        config = machine_configs.get(machine_type, machine_configs['robot'])
+        
+        # Generate realistic random sensor data
+        base_temp = config['temp_base']
+        temp_variation = random.gauss(0, 8)
+        temperature = max(60, min(120, base_temp + temp_variation))
+        
+        base_pressure = config['pressure_base']
         pressure_variation = random.gauss(0, 0.3)
-        pressure = max(1.0, min(2.5, base_pressure + pressure_variation))
+        pressure = max(0.5, min(3.0, base_pressure + pressure_variation))
         
         base_vibration = 0.3
         vibration_variation = random.gauss(0, 0.15)
@@ -355,10 +373,10 @@ def twin_data():
         humidity_variation = random.gauss(0, 5)
         humidity = max(30, min(70, base_humidity + humidity_variation))
         
-        # RPM varies based on machine load
-        base_rpm = 1800
+        # RPM varies based on machine type and load
+        base_rpm = config['rpm_base']
         rpm_variation = random.gauss(0, 200)
-        rpm = max(800, min(3000, base_rpm + rpm_variation))
+        rpm = max(200, min(4000, base_rpm + rpm_variation))
         
         # Power consumption correlates with RPM and load
         base_power = 120
@@ -373,6 +391,14 @@ def twin_data():
         else:
             status = "Operating"
         
+        # Calculate health score
+        health_score = max(60, min(100, 
+            95 - 
+            (max(0, temperature - config['temp_base']) * 0.5) - 
+            (max(0, pressure - config['pressure_base']) * 5) - 
+            (max(0, vibration - 0.3) * 10)
+        ))
+        
         data = {
             "temperature": round(temperature, 1),
             "pressure": round(pressure, 2),
@@ -381,8 +407,10 @@ def twin_data():
             "rpm": round(rpm),
             "power": round(power, 1),
             "status": status,
+            "machine_type": machine_type,
+            "health_score": round(health_score, 1),
             "alerts": [],
-            "efficiency": max(60, min(98, 95 - (temperature - 75) * 0.5 - (vibration - 0.3) * 10)),
+            "efficiency": round(health_score, 1),
             "uptime": f"{random.randint(12, 168)}h {random.randint(0, 59)}m"
         }
     

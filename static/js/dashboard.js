@@ -119,27 +119,34 @@ function setupEventListeners() {
     });
 }
 
-// Start automatic data updates
+// Enhanced automatic data updates with retry logic
 function startDataUpdates() {
     updateDashboard();
-    setInterval(updateDashboard, 5000); // Update every 5 seconds
+
+    // Set up interval with error recovery
+    setInterval(() => {
+        updateDashboard().catch(error => {
+            console.error('Data update failed, retrying...', error);
+            setTimeout(updateDashboard, 5000); // Retry after 5 seconds
+        });
+    }, 5000);
 }
 
 // Main update function
 async function updateDashboard() {
     if (!isUpdating) return;
-    
+
     try {
         const response = await fetch('/api/dashboard');
         if (!response.ok) throw new Error('Failed to fetch data');
-        
+
         const data = await response.json();
         updateMetricCards(data);
         updateCharts(data);
         updateSystemStatus(data);
         updateAlerts(data);
         updateTimestamp();
-        
+
     } catch (error) {
         console.error('Error updating dashboard:', error);
         // Use fallback data if API fails
@@ -170,17 +177,17 @@ function updateMetricCards(data) {
     document.getElementById('tempValue').textContent = `${data.temperature}°F`;
     document.getElementById('tempProgress').style.width = `${(data.temperature / 100) * 100}%`;
     document.getElementById('tempStatus').textContent = getTemperatureStatus(data.temperature);
-    
+
     // Pressure
     document.getElementById('pressureValue').textContent = `${data.pressure} bar`;
     document.getElementById('pressureProgress').style.width = `${(data.pressure / 2.5) * 100}%`;
     document.getElementById('pressureStatus').textContent = getPressureStatus(data.pressure);
-    
+
     // Vibration
     document.getElementById('vibrationValue').textContent = `${data.vibration} mm/s`;
     document.getElementById('vibrationProgress').style.width = `${(data.vibration / 1.0) * 100}%`;
     document.getElementById('vibrationStatus').textContent = getVibrationStatus(data.vibration);
-    
+
     // Efficiency
     document.getElementById('efficiencyValue').textContent = `${data.efficiency}%`;
     document.getElementById('efficiencyProgress').style.width = `${data.efficiency}%`;
@@ -190,24 +197,24 @@ function updateMetricCards(data) {
 // Update charts with new data
 function updateCharts(data) {
     const now = new Date().toLocaleTimeString();
-    
+
     // Temperature chart
     temperatureData.push(data.temperature);
     if (temperatureData.length > 10) temperatureData.shift();
-    
+
     temperatureChart.data.labels.push(now);
     if (temperatureChart.data.labels.length > 10) temperatureChart.data.labels.shift();
-    
+
     temperatureChart.data.datasets[0].data = [...temperatureData];
     temperatureChart.update('none');
-    
+
     // Pressure chart
     pressureData.push(data.pressure);
     if (pressureData.length > 10) pressureData.shift();
-    
+
     pressureChart.data.labels.push(now);
     if (pressureChart.data.labels.length > 10) pressureChart.data.labels.shift();
-    
+
     pressureChart.data.datasets[0].data = [...pressureData];
     pressureChart.update('none');
 }
@@ -216,7 +223,7 @@ function updateCharts(data) {
 function updateSystemStatus(data) {
     const statusElement = document.getElementById('systemStatus');
     const statusText = data.status;
-    
+
     statusElement.textContent = statusText;
     statusElement.className = `px-3 py-1 rounded-full text-sm font-medium status-${statusText.toLowerCase()}`;
 }
@@ -225,7 +232,7 @@ function updateSystemStatus(data) {
 function updateAlerts(data) {
     const alertsList = document.getElementById('alertsList');
     const alerts = [];
-    
+
     // Critical temperature alerts
     if (data.temperature > 95) {
         alerts.push({
@@ -252,7 +259,7 @@ function updateAlerts(data) {
             action: 'Monitor closely'
         });
     }
-    
+
     // Pressure alerts
     if (data.pressure > 2.2) {
         alerts.push({
@@ -279,7 +286,7 @@ function updateAlerts(data) {
             action: 'Schedule inspection'
         });
     }
-    
+
     // Vibration alerts
     if (data.vibration > 1.0) {
         alerts.push({
@@ -306,7 +313,7 @@ function updateAlerts(data) {
             action: 'Monitor vibration trends'
         });
     }
-    
+
     // Efficiency alerts
     if (data.efficiency < 60) {
         alerts.push({
@@ -325,7 +332,7 @@ function updateAlerts(data) {
             action: 'Review operating parameters'
         });
     }
-    
+
     // Humidity alerts
     if (data.humidity > 70 || data.humidity < 30) {
         alerts.push({
@@ -336,7 +343,7 @@ function updateAlerts(data) {
             action: 'Check environmental controls'
         });
     }
-    
+
     // System status alerts
     if (data.status === 'Maintenance') {
         alerts.push({
@@ -355,7 +362,7 @@ function updateAlerts(data) {
             action: 'Ready for operation'
         });
     }
-    
+
     if (alerts.length === 0) {
         alertsList.innerHTML = `
             <div class="text-gray-500 text-center py-4">
@@ -370,7 +377,7 @@ function updateAlerts(data) {
             const severityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
             return severityOrder[b.type] - severityOrder[a.type];
         });
-        
+
         alertsList.innerHTML = alerts.map(alert => `
             <div class="alert-${alert.type} p-3 rounded-lg mb-2 border-l-4 border-${alert.type === 'critical' ? 'red' : alert.type === 'high' ? 'orange' : alert.type === 'medium' ? 'yellow' : 'blue'}-500">
                 <div class="flex items-start">
@@ -429,11 +436,11 @@ function exportData() {
             version: '1.0'
         }
     };
-    
+
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: 'application/json'
     });
-    
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
