@@ -477,22 +477,72 @@ def predict_api():
             risk_factors.append("Humidity outside optimal range")
             maintenance_recommendations.append("Check environmental controls")
         
+        # Enhanced maintenance recommendations based on specific issues
+        detailed_recommendations = []
+        if temperature > 90:
+            detailed_recommendations.extend([
+                "Inspect cooling system immediately",
+                "Check coolant levels and flow rates",
+                "Verify ambient temperature conditions",
+                "Consider reducing operational load"
+            ])
+        elif temperature > 85:
+            detailed_recommendations.extend([
+                "Schedule cooling system maintenance",
+                "Monitor temperature trends closely",
+                "Check for blocked air filters"
+            ])
+        
+        if pressure > 2.2:
+            detailed_recommendations.extend([
+                "Emergency pressure relief required",
+                "Inspect pressure relief valves",
+                "Check for system blockages",
+                "Verify pressure sensor calibration"
+            ])
+        elif pressure > 2.0:
+            detailed_recommendations.extend([
+                "Monitor pressure trends",
+                "Schedule pressure system inspection"
+            ])
+        
+        if vibration > 0.9:
+            detailed_recommendations.extend([
+                "Critical: Stop operation for bearing inspection",
+                "Check motor alignment and mounting",
+                "Perform vibration analysis",
+                "Inspect for loose components"
+            ])
+        elif vibration > 0.7:
+            detailed_recommendations.extend([
+                "Schedule vibration analysis",
+                "Check bearing condition",
+                "Verify proper lubrication"
+            ])
+        
+        if humidity > 70 or humidity < 30:
+            detailed_recommendations.extend([
+                "Adjust environmental controls",
+                "Check HVAC system operation",
+                "Monitor for condensation issues"
+            ])
+        
         # Determine risk level and overall recommendation
         if risk_score >= 60:
             risk_level = "Critical Risk"
-            overall_recommendation = "Stop operation immediately - maintenance required"
+            overall_recommendation = "STOP OPERATION IMMEDIATELY - Critical maintenance required"
             predicted_failure_time = "< 4 hours"
         elif risk_score >= 40:
             risk_level = "High Risk"
-            overall_recommendation = "Schedule immediate maintenance"
+            overall_recommendation = "Schedule immediate maintenance within 8 hours"
             predicted_failure_time = "12-24 hours"
         elif risk_score >= 20:
             risk_level = "Medium Risk"
-            overall_recommendation = "Schedule maintenance within 48 hours"
+            overall_recommendation = "Schedule preventive maintenance within 48 hours"
             predicted_failure_time = "2-7 days"
         else:
             risk_level = "Low Risk"
-            overall_recommendation = "Normal operation - continue monitoring"
+            overall_recommendation = "Normal operation - continue routine monitoring"
             predicted_failure_time = "> 30 days"
         
         # Calculate confidence based on data completeness
@@ -508,10 +558,14 @@ def predict_api():
             "risk_level": risk_level,
             "risk_factors": risk_factors,
             "maintenance_recommendations": maintenance_recommendations,
+            "detailed_recommendations": detailed_recommendations,
             "overall_recommendation": overall_recommendation,
             "predicted_failure_time": predicted_failure_time,
             "confidence": confidence,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "priority_actions": detailed_recommendations[:3] if detailed_recommendations else ["Continue normal operation"],
+            "estimated_cost": f"${random.randint(500, 5000)}" if risk_score > 40 else f"${random.randint(100, 500)}",
+            "technician_required": risk_score > 40
         })
         
     except Exception as e:

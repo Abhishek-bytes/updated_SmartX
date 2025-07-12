@@ -316,8 +316,53 @@ function displayPredictionResults(result) {
         `;
     }
 
-    // Display recommendation
-    document.getElementById('recommendation').textContent = result.recommendation;
+    // Display detailed recommendations
+    if (result.detailed_recommendations && result.detailed_recommendations.length > 0) {
+        const detailedRecsHtml = result.detailed_recommendations.map(rec => `
+            <div class="flex items-start p-2 bg-blue-500/10 rounded mb-2">
+                <i class="fas fa-tools text-blue-400 mr-2 mt-1"></i>
+                <span class="text-sm text-gray-300">${rec}</span>
+            </div>
+        `).join('');
+        
+        riskFactorsContainer.innerHTML += `
+            <div class="mt-4">
+                <h5 class="text-sm font-semibold text-blue-400 mb-2">Detailed Recommendations:</h5>
+                ${detailedRecsHtml}
+            </div>
+        `;
+    }
+
+    // Display priority actions
+    if (result.priority_actions && result.priority_actions.length > 0) {
+        const priorityActionsHtml = result.priority_actions.map(action => `
+            <div class="flex items-start p-2 bg-red-500/10 rounded mb-1">
+                <i class="fas fa-exclamation text-red-400 mr-2 mt-1"></i>
+                <span class="text-sm text-gray-300 font-medium">${action}</span>
+            </div>
+        `).join('');
+        
+        riskFactorsContainer.innerHTML += `
+            <div class="mt-4">
+                <h5 class="text-sm font-semibold text-red-400 mb-2">Priority Actions:</h5>
+                ${priorityActionsHtml}
+            </div>
+        `;
+    }
+
+    // Display main recommendation with additional info
+    let recommendationHtml = result.overall_recommendation || result.recommendation;
+    if (result.estimated_cost) {
+        recommendationHtml += `<br><small class="text-gray-400">Estimated Cost: ${result.estimated_cost}</small>`;
+    }
+    if (result.technician_required) {
+        recommendationHtml += `<br><small class="text-yellow-400"><i class="fas fa-user-cog mr-1"></i>Specialist technician required</small>`;
+    }
+    if (result.predicted_failure_time) {
+        recommendationHtml += `<br><small class="text-blue-400"><i class="fas fa-clock mr-1"></i>Predicted failure time: ${result.predicted_failure_time}</small>`;
+    }
+    
+    document.getElementById('recommendation').innerHTML = recommendationHtml;
 }
 
 // Update risk trend chart

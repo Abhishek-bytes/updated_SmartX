@@ -1095,7 +1095,16 @@ function startDataUpdates() {
 
 async function updateSensorData() {
     try {
-        // Simulated sensor data since API might not be available
+        const response = await fetch('/api/twin-data');
+        const data = await response.json();
+        sensorData = data;
+
+        updateSensorDisplay(data);
+        updateSensorVisualization(data);
+
+    } catch (error) {
+        console.error('Error updating twin data:', error);
+        // Use simulated data when API fails
         sensorData = {
             temperature: 75 + Math.random() * 15,
             pressure: 1.2 + Math.random() * 0.8,
@@ -1107,9 +1116,6 @@ async function updateSensorData() {
 
         updateSensorDisplay(sensorData);
         updateSensorVisualization(sensorData);
-
-    } catch (error) {
-        console.error('Error updating twin data:', error);
     }
 }
 
