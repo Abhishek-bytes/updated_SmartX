@@ -6,6 +6,7 @@ let animationRunning = true;
 let rotatingParts = [];
 let vrHelper = null;
 let animationFrame = 0;
+let shadowGenerator = null;
 
 // Initialize Babylon.js scene when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -87,7 +88,7 @@ function setupEnhancedLighting() {
     directionalLight.shadowMaxZ = 2500;
 
     // Create shadow generator
-    const shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
+    shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
     shadowGenerator.useBlurExponentialShadowMap = true;
     shadowGenerator.blurKernel = 32;
 
@@ -99,9 +100,6 @@ function setupEnhancedLighting() {
     const pointLight2 = new BABYLON.PointLight("pointLight2", new BABYLON.Vector3(-10, 5, 10), scene);
     pointLight2.diffuse = new BABYLON.Color3(1, 0.4, 0.2);
     pointLight2.intensity = 0.4;
-
-    // Store shadow generator for later use
-    scene.shadowGenerator = shadowGenerator;
 }
 
 function createEnhancedMachine() {
@@ -144,10 +142,10 @@ function createEnhancedMachine() {
     createEnhancedGround();
 
     // Add all meshes to shadow generator
-    if (scene.shadowGenerator) {
+    if (shadowGenerator) {
         scene.meshes.forEach(mesh => {
             if (mesh.name !== 'ground') {
-                scene.shadowGenerator.addShadowCaster(mesh);
+                shadowGenerator.addShadowCaster(mesh);
             }
         });
     }
@@ -674,6 +672,141 @@ function setupEventListeners() {
     document.getElementById('topView').addEventListener('click', () => setView('top'));
     document.getElementById('sideView').addEventListener('click', () => setView('side'));
     document.getElementById('isoView').addEventListener('click', () => setView('iso'));
+
+    // Additional controls
+    setupAdditionalControls();
+}
+
+function setupAdditionalControls() {
+    // Wireframe toggle
+    const wireframeToggle = document.getElementById('wireframeToggle');
+    if (wireframeToggle) {
+        wireframeToggle.addEventListener('change', function(e) {
+            scene.meshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.wireframe = e.target.checked;
+                }
+            });
+        });
+    }
+
+    // Particles toggle
+    const particlesToggle = document.getElementById('particlesToggle');
+    if (particlesToggle) {
+        particlesToggle.addEventListener('change', function(e) {
+            // Add particle system toggle logic here
+            console.log('Particles toggled:', e.target.checked);
+        });
+    }
+
+    // Material selection
+    const materialSelect = document.getElementById('materialSelect');
+    if (materialSelect) {
+        materialSelect.addEventListener('change', function(e) {
+            updateMaterialStyle(e.target.value);
+        });
+    }
+
+    // Post-processing effects
+    const postProcessSelect = document.getElementById('postProcessSelect');
+    if (postProcessSelect) {
+        postProcessSelect.addEventListener('change', function(e) {
+            updatePostProcessing(e.target.value);
+        });
+    }
+
+    // Quality settings
+    const qualitySelect = document.getElementById('qualitySelect');
+    if (qualitySelect) {
+        qualitySelect.addEventListener('change', function(e) {
+            updateQuality(e.target.value);
+        });
+    }
+}
+
+function updateMaterialStyle(style) {
+    scene.meshes.forEach(mesh => {
+        if (mesh.material && mesh.material instanceof BABYLON.PBRMaterial) {
+            switch(style) {
+                case 'metallic':
+                    mesh.material.metallic = 0.9;
+                    mesh.material.roughness = 0.1;
+                    break;
+                case 'carbon':
+                    mesh.material.baseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                    mesh.material.metallic = 0.8;
+                    mesh.material.roughness = 0.3;
+                    break;
+                case 'glass':
+                    mesh.material.baseColor = new BABYLON.Color3(0.8, 0.9, 1);
+                    mesh.material.metallic = 0.1;
+                    mesh.material.roughness = 0.0;
+                    mesh.material.alpha = 0.3;
+                    break;
+                case 'ceramic':
+                    mesh.material.baseColor = new BABYLON.Color3(0.9, 0.9, 0.8);
+                    mesh.material.metallic = 0.0;
+                    mesh.material.roughness = 0.8;
+                    break;
+                default:
+                    // Reset to standard
+                    mesh.material.alpha = 1.0;
+                    break;
+            }
+        }
+    });
+}
+
+function updatePostProcessing(effect) {
+    // Clear existing post-processing
+    scene.postProcessRenderPipelineManager.dispose();
+
+    switch(effect) {
+        case 'bloom':
+            const bloomPipeline = new BABYLON.DefaultRenderingPipeline("bloom", true, scene, [camera]);
+            bloomPipeline.bloomEnabled = true;
+            bloomPipeline.bloomThreshold = 0.8;
+            bloomPipeline.bloomWeight = 0.3;
+            break;
+        case 'ssao':
+            const ssaoPipeline = new BABYLON.DefaultRenderingPipeline("ssao", true, scene, [camera]);
+            ssaoPipeline.samples = 32;
+            break;
+        case 'outline':
+            // Enable outline rendering
+            scene.meshes.forEach(mesh => {
+                mesh.renderOutline = true;
+                mesh.outlineColor = new BABYLON.Color3(1, 1, 0);
+                mesh.outlineWidth = 0.02;
+            });
+            break;
+        case 'all':
+            const fullPipeline = new BABYLON.DefaultRenderingPipeline("full", true, scene, [camera]);
+            fullPipeline.bloomEnabled = true;
+            fullPipeline.samples = 32;
+            break;
+    }
+}
+
+function updateQuality(quality) {
+    switch(quality) {
+        case 'low':
+            engine.setHardwareScalingLevel(2);
+            if (shadowGenerator) shadowGenerator.mapSize = 512;
+            break;
+        case 'medium':
+            engine.setHardwareScalingLevel(1);
+            if (shadowGenerator) shadowGenerator.mapSize = 1024;
+            break;
+        case 'high':
+            engine.setHardwareScalingLevel(0.5);
+            if (shadowGenerator) shadowGenerator.mapSize = 2048;
+            break;
+        case 'ultra':
+            engine.setHardwareScalingLevel(0.25);
+            if (shadowGenerator) shadowGenerator.mapSize = 4096;
+            break;
+    }
 }
 
 function simulateVRMode() {
