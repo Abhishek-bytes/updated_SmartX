@@ -1,11 +1,8 @@
-
 // Enhanced Babylon.js Digital Twin JavaScript
 let engine, scene, camera, sensorData = {};
 let machineGroup, currentMachine = 'robot';
 let animationRunning = true;
 let rotatingParts = [];
-let vrHelper = null;
-let animationFrame = 0;
 let shadowGenerator = null;
 
 // Initialize Babylon.js scene when page loads
@@ -18,39 +15,53 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize Babylon.js scene
 function initBabylonScene() {
     const canvas = document.getElementById('twin-canvas');
-    engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
 
-    scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color3(0.05, 0.09, 0.16);
+    try {
+        engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color3(0.05, 0.09, 0.16);
 
-    // Enhanced camera with proper Babylon.js setup
-    camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 10, BABYLON.Vector3.Zero(), scene);
-    camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
+        // Create camera - using proper Babylon.js syntax
+        camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 10, BABYLON.Vector3.Zero(), scene);
+        camera.setTarget(BABYLON.Vector3.Zero());
 
-    // Enhanced lighting
-    setupEnhancedLighting();
-
-    // Create machine
-    createEnhancedMachine();
-
-    // Start render loop with animations
-    engine.runRenderLoop(() => {
-        animationFrame++;
-        updatePerformanceDisplay();
-        if (animationRunning) {
-            animateMachine();
+        // Properly attach controls
+        if (camera.attachControls) {
+            camera.attachControls(canvas, true);
         }
-        scene.render();
-    });
 
-    // Handle resize
-    window.addEventListener("resize", () => {
-        engine.resize();
-    });
+        // Enhanced lighting
+        setupEnhancedLighting();
 
-    // Setup VR
-    setupVR();
+        // Create machine
+        createEnhancedMachine();
+
+        // Start render loop
+        engine.runRenderLoop(() => {
+            if (animationRunning) {
+                animateMachine();
+            }
+            updatePerformanceDisplay();
+            scene.render();
+        });
+
+        // Handle resize
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+
+        // Setup VR
+        setupVR();
+
+        console.log("Babylon.js scene initialized successfully");
+
+    } catch (error) {
+        console.error('Error initializing Babylon.js scene:', error);
+    }
 }
 
 function setupVR() {
@@ -81,16 +92,20 @@ function setupEnhancedLighting() {
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
     ambientLight.intensity = 0.4;
 
-    // Main directional light with shadows
+    // Main directional light
     const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -1, -1), scene);
     directionalLight.intensity = 1.2;
     directionalLight.shadowMinZ = 1;
     directionalLight.shadowMaxZ = 2500;
 
-    // Create shadow generator
-    shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
-    shadowGenerator.useBlurExponentialShadowMap = true;
-    shadowGenerator.blurKernel = 32;
+    // Create shadow generator if supported
+    try {
+        shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
+        shadowGenerator.useBlurExponentialShadowMap = true;
+        shadowGenerator.blurKernel = 32;
+    } catch (error) {
+        console.log("Shadow generation not supported");
+    }
 
     // Point lights for atmosphere
     const pointLight1 = new BABYLON.PointLight("pointLight1", new BABYLON.Vector3(10, 10, 0), scene);
@@ -141,7 +156,7 @@ function createEnhancedMachine() {
     // Add ground
     createEnhancedGround();
 
-    // Add all meshes to shadow generator
+    // Add shadows if available
     if (shadowGenerator) {
         scene.meshes.forEach(mesh => {
             if (mesh.name !== 'ground') {
@@ -157,11 +172,10 @@ function createRoboticArm() {
     base.position.y = 0.5;
     base.parent = machineGroup;
 
-    // Enhanced material with PBR
-    const baseMaterial = new BABYLON.PBRMaterial("baseMaterial", scene);
-    baseMaterial.baseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
-    baseMaterial.metallic = 0.8;
-    baseMaterial.roughness = 0.2;
+    // Enhanced material
+    const baseMaterial = new BABYLON.StandardMaterial("baseMaterial", scene);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
+    baseMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
     base.material = baseMaterial;
 
     // Rotating base
@@ -178,10 +192,9 @@ function createRoboticArm() {
         segment.rotation.z = Math.sin(Date.now() * 0.001 + i) * 0.3;
         segment.parent = machineGroup;
 
-        const segmentMaterial = new BABYLON.PBRMaterial("segmentMaterial" + i, scene);
-        segmentMaterial.baseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
-        segmentMaterial.metallic = 0.9;
-        segmentMaterial.roughness = 0.1;
+        const segmentMaterial = new BABYLON.StandardMaterial("segmentMaterial" + i, scene);
+        segmentMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
+        segmentMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
         segment.material = segmentMaterial;
 
         rotatingParts.push({mesh: segment, axis: 'z', speed: 0.01 + i * 0.005, originalPosition: segment.position.clone()});
@@ -193,14 +206,14 @@ function createRoboticArm() {
         joint.material = baseMaterial;
     }
 
-    // End effector with animated movement
+    // End effector
     const endEffector = BABYLON.MeshBuilder.CreateBox("endEffector", {width: 0.5, height: 0.2, depth: 0.2}, scene);
     endEffector.position.y = 5;
     endEffector.parent = machineGroup;
     endEffector.material = baseMaterial;
     rotatingParts.push({mesh: endEffector, axis: 'x', speed: 0.03, originalPosition: endEffector.position.clone()});
 
-    // Add glowing sensor indicators
+    // Add sensor indicators
     createSensorIndicators();
 }
 
@@ -210,10 +223,8 @@ function createWindTurbine() {
     tower.position.y = 4;
     tower.parent = machineGroup;
 
-    const towerMaterial = new BABYLON.PBRMaterial("towerMaterial", scene);
-    towerMaterial.baseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
-    towerMaterial.metallic = 0.3;
-    towerMaterial.roughness = 0.7;
+    const towerMaterial = new BABYLON.StandardMaterial("towerMaterial", scene);
+    towerMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
     tower.material = towerMaterial;
 
     // Nacelle
@@ -222,7 +233,7 @@ function createWindTurbine() {
     nacelle.parent = machineGroup;
     nacelle.material = towerMaterial;
 
-    // Hub - this will rotate with blades
+    // Hub
     const hub = BABYLON.MeshBuilder.CreateSphere("hub", {diameter: 0.8}, scene);
     hub.position = new BABYLON.Vector3(1.5, 8, 0);
     hub.parent = machineGroup;
@@ -235,12 +246,12 @@ function createWindTurbine() {
 
     rotatingParts.push({mesh: hub, axis: 'x', speed: 0.05, originalPosition: hub.position.clone()});
 
-    // Blades - attached to hub for rotation
+    // Blades
     for (let i = 0; i < 3; i++) {
         const blade = BABYLON.MeshBuilder.CreateBox("blade" + i, {width: 0.1, height: 4, depth: 0.5}, scene);
         blade.position = new BABYLON.Vector3(1.5, 10, 0);
         blade.rotation.x = (i * Math.PI * 2 / 3);
-        blade.parent = hub; // Parent to hub so they rotate together
+        blade.parent = hub;
 
         const bladeMaterial = new BABYLON.PBRMaterial("bladeMaterial", scene);
         bladeMaterial.baseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
@@ -258,10 +269,8 @@ function createCNCMachine() {
     base.position.y = 0.25;
     base.parent = machineGroup;
 
-    const baseMaterial = new BABYLON.PBRMaterial("cncBaseMaterial", scene);
-    baseMaterial.baseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
-    baseMaterial.metallic = 0.8;
-    baseMaterial.roughness = 0.2;
+    const baseMaterial = new BABYLON.StandardMaterial("cncBaseMaterial", scene);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
     base.material = baseMaterial;
 
     // Spindle housing
@@ -270,15 +279,13 @@ function createCNCMachine() {
     housing.parent = machineGroup;
     housing.material = baseMaterial;
 
-    // Rotating spindle - fast rotation
+    // Rotating spindle
     const spindle = BABYLON.MeshBuilder.CreateCylinder("spindle", {height: 1, diameter: 0.1}, scene);
     spindle.position.set(0, 0.75, 0);
     spindle.parent = machineGroup;
 
-    const spindleMaterial = new BABYLON.PBRMaterial("spindleMaterial", scene);
-    spindleMaterial.baseColor = new BABYLON.Color3(1, 0.3, 0.3);
-    spindleMaterial.metallic = 0.9;
-    spindleMaterial.roughness = 0.1;
+    const spindleMaterial = new BABYLON.StandardMaterial("spindleMaterial", scene);
+    spindleMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
     spindle.material = spindleMaterial;
     rotatingParts.push({mesh: spindle, axis: 'y', speed: 0.3, originalPosition: spindle.position.clone()});
 
@@ -287,10 +294,8 @@ function createCNCMachine() {
     table.position.y = 0.6;
     table.parent = machineGroup;
 
-    const tableMaterial = new BABYLON.PBRMaterial("tableMaterial", scene);
-    tableMaterial.baseColor = new BABYLON.Color3(0.5, 0.5, 0.6);
-    tableMaterial.metallic = 0.7;
-    tableMaterial.roughness = 0.3;
+    const tableMaterial = new BABYLON.StandardMaterial("tableMaterial", scene);
+    tableMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.6);
     table.material = tableMaterial;
 
     createSensorIndicators();
@@ -302,23 +307,19 @@ function createConveyorSystem() {
     belt.position.y = 0.6;
     belt.parent = machineGroup;
 
-    const beltMaterial = new BABYLON.PBRMaterial("beltMaterial", scene);
-    beltMaterial.baseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-    beltMaterial.metallic = 0.1;
-    beltMaterial.roughness = 0.9;
+    const beltMaterial = new BABYLON.StandardMaterial("beltMaterial", scene);
+    beltMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
     belt.material = beltMaterial;
 
-    // Rollers - rotating
+    // Rollers
     for (let i = 0; i < 7; i++) {
         const roller = BABYLON.MeshBuilder.CreateCylinder("roller" + i, {height: 1.2, diameter: 0.2}, scene);
         roller.position.set(-2.5 + i * 0.8, 0.5, 0);
         roller.rotation.z = Math.PI / 2;
         roller.parent = machineGroup;
 
-        const rollerMaterial = new BABYLON.PBRMaterial("rollerMaterial", scene);
-        rollerMaterial.baseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
-        rollerMaterial.metallic = 0.8;
-        rollerMaterial.roughness = 0.2;
+        const rollerMaterial = new BABYLON.StandardMaterial("rollerMaterial", scene);
+        rollerMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
         roller.material = rollerMaterial;
         rotatingParts.push({mesh: roller, axis: 'z', speed: 0.05, originalPosition: roller.position.clone()});
     }
@@ -329,10 +330,8 @@ function createConveyorSystem() {
         package.position.set(-2 + i * 1.5, 0.85, 0);
         package.parent = machineGroup;
 
-        const packageMaterial = new BABYLON.PBRMaterial("packageMaterial", scene);
-        packageMaterial.baseColor = new BABYLON.Color3(0.8, 0.5, 0.2);
-        packageMaterial.metallic = 0.1;
-        packageMaterial.roughness = 0.8;
+        const packageMaterial = new BABYLON.StandardMaterial("packageMaterial", scene);
+        packageMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.5, 0.2);
         package.material = packageMaterial;
         rotatingParts.push({
             mesh: package, 
@@ -352,13 +351,11 @@ function createAssemblyStation() {
     platform.position.y = 0.15;
     platform.parent = machineGroup;
 
-    const platformMaterial = new BABYLON.PBRMaterial("platformMaterial", scene);
-    platformMaterial.baseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
-    platformMaterial.metallic = 0.8;
-    platformMaterial.roughness = 0.2;
+    const platformMaterial = new BABYLON.StandardMaterial("platformMaterial", scene);
+    platformMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.8);
     platform.material = platformMaterial;
 
-    // Assembly arms - each rotating at different speeds
+    // Assembly arms
     for (let i = 0; i < 4; i++) {
         const angle = (i / 4) * Math.PI * 2;
         const armBase = BABYLON.MeshBuilder.CreateCylinder("armBase" + i, {height: 0.5, diameter: 0.2}, scene);
@@ -369,25 +366,21 @@ function createAssemblyStation() {
         arm.position.set(Math.cos(angle) * 1.2, 0.8, Math.sin(angle) * 1.2);
         arm.parent = machineGroup;
 
-        const armMaterial = new BABYLON.PBRMaterial("armMaterial", scene);
-        armMaterial.baseColor = new BABYLON.Color3(0.6, 0.3, 0.8);
-        armMaterial.metallic = 0.7;
-        armMaterial.roughness = 0.3;
+        const armMaterial = new BABYLON.StandardMaterial("armMaterial", scene);
+        armMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.3, 0.8);
         arm.material = armMaterial;
         armBase.material = armMaterial;
 
         rotatingParts.push({mesh: arm, axis: 'y', speed: 0.02 + i * 0.01, originalPosition: arm.position.clone()});
     }
 
-    // Central assembly point - fast rotating
+    // Central assembly point
     const center = BABYLON.MeshBuilder.CreateCylinder("center", {height: 0.3, diameter: 0.4}, scene);
     center.position.y = 0.45;
     center.parent = machineGroup;
 
-    const centerMaterial = new BABYLON.PBRMaterial("centerMaterial", scene);
-    centerMaterial.baseColor = new BABYLON.Color3(1, 0.3, 0.3);
-    centerMaterial.metallic = 0.9;
-    centerMaterial.roughness = 0.1;
+    const centerMaterial = new BABYLON.StandardMaterial("centerMaterial", scene);
+    centerMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
     center.material = centerMaterial;
     rotatingParts.push({mesh: center, axis: 'y', speed: 0.08, originalPosition: center.position.clone()});
 
@@ -400,10 +393,8 @@ function createHydraulicPress() {
     frame.position.y = 1.5;
     frame.parent = machineGroup;
 
-    const frameMaterial = new BABYLON.PBRMaterial("frameMaterial", scene);
-    frameMaterial.baseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
-    frameMaterial.metallic = 0.8;
-    frameMaterial.roughness = 0.4;
+    const frameMaterial = new BABYLON.StandardMaterial("frameMaterial", scene);
+    frameMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
     frame.material = frameMaterial;
 
     // Hydraulic cylinder
@@ -411,21 +402,17 @@ function createHydraulicPress() {
     cylinder.position.set(0, 2.5, 0);
     cylinder.parent = machineGroup;
 
-    const cylinderMaterial = new BABYLON.PBRMaterial("cylinderMaterial", scene);
-    cylinderMaterial.baseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
-    cylinderMaterial.metallic = 0.9;
-    cylinderMaterial.roughness = 0.2;
+    const cylinderMaterial = new BABYLON.StandardMaterial("cylinderMaterial", scene);
+    cylinderMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.7);
     cylinder.material = cylinderMaterial;
 
-    // Press head (moving part) - oscillating up and down
+    // Press head (moving part)
     const head = BABYLON.MeshBuilder.CreateBox("head", {width: 1.5, height: 0.3, depth: 1.2}, scene);
     head.position.set(0, 1.8, 0);
     head.parent = machineGroup;
 
-    const headMaterial = new BABYLON.PBRMaterial("headMaterial", scene);
-    headMaterial.baseColor = new BABYLON.Color3(1, 0.3, 0.3);
-    headMaterial.metallic = 0.8;
-    headMaterial.roughness = 0.2;
+    const headMaterial = new BABYLON.StandardMaterial("headMaterial", scene);
+    headMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
     head.material = headMaterial;
     rotatingParts.push({
         mesh: head, 
@@ -441,10 +428,8 @@ function createHydraulicPress() {
     baseplate.position.y = 0.6;
     baseplate.parent = machineGroup;
 
-    const baseMaterial = new BABYLON.PBRMaterial("baseMaterial", scene);
-    baseMaterial.baseColor = new BABYLON.Color3(0.4, 0.4, 0.5);
-    baseMaterial.metallic = 0.7;
-    baseMaterial.roughness = 0.3;
+    const baseMaterial = new BABYLON.StandardMaterial("baseMaterial", scene);
+    baseMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.5);
     baseplate.material = baseMaterial;
 
     createSensorIndicators();
@@ -456,35 +441,29 @@ function createChemicalReactor() {
     vessel.position.y = 2;
     vessel.parent = machineGroup;
 
-    const vesselMaterial = new BABYLON.PBRMaterial("vesselMaterial", scene);
-    vesselMaterial.baseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
-    vesselMaterial.metallic = 0.9;
-    vesselMaterial.roughness = 0.1;
+    const vesselMaterial = new BABYLON.StandardMaterial("vesselMaterial", scene);
+    vesselMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.9);
     vessel.material = vesselMaterial;
 
-    // Stirrer - fast rotating
+    // Stirrer
     const stirrer = BABYLON.MeshBuilder.CreateCylinder("stirrer", {height: 3.5, diameter: 0.1}, scene);
     stirrer.position.y = 2;
     stirrer.parent = machineGroup;
 
-    const stirrerMaterial = new BABYLON.PBRMaterial("stirrerMaterial", scene);
-    stirrerMaterial.baseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-    stirrerMaterial.metallic = 0.8;
-    stirrerMaterial.roughness = 0.2;
+    const stirrerMaterial = new BABYLON.StandardMaterial("stirrerMaterial", scene);
+    stirrerMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
     stirrer.material = stirrerMaterial;
     rotatingParts.push({mesh: stirrer, axis: 'y', speed: 0.15, originalPosition: stirrer.position.clone()});
 
-    // Stirrer blades - attached to stirrer
+    // Stirrer blades
     for (let i = 0; i < 4; i++) {
         const blade = BABYLON.MeshBuilder.CreateBox("stirrerBlade" + i, {width: 0.8, height: 0.1, depth: 0.05}, scene);
         blade.position.set(0, 0.5 + i * 0.8, 0);
         blade.rotation.y = (i * Math.PI / 2);
-        blade.parent = stirrer; // Parent to stirrer so they rotate together
+        blade.parent = stirrer;
 
-        const bladeMaterial = new BABYLON.PBRMaterial("bladeMaterial", scene);
-        bladeMaterial.baseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        bladeMaterial.metallic = 0.7;
-        bladeMaterial.roughness = 0.3;
+        const bladeMaterial = new BABYLON.StandardMaterial("bladeMaterial", scene);
+        bladeMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         blade.material = bladeMaterial;
     }
 
@@ -496,10 +475,8 @@ function createChemicalReactor() {
         pipe.rotation.z = Math.PI / 2;
         pipe.parent = machineGroup;
 
-        const pipeMaterial = new BABYLON.PBRMaterial("pipeMaterial", scene);
-        pipeMaterial.baseColor = new BABYLON.Color3(0.3, 0.6, 0.3);
-        pipeMaterial.metallic = 0.6;
-        pipeMaterial.roughness = 0.4;
+        const pipeMaterial = new BABYLON.StandardMaterial("pipeMaterial", scene);
+        pipeMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.6, 0.3);
         pipe.material = pipeMaterial;
     }
 
@@ -507,24 +484,24 @@ function createChemicalReactor() {
 }
 
 function createSensorIndicators() {
-    // Temperature sensor - pulsing red
+    // Temperature sensor - glowing red
     const tempSensor = BABYLON.MeshBuilder.CreateSphere("tempSensor", {diameter: 0.2}, scene);
     tempSensor.position.set(0.8, 1.2, 0.8);
     tempSensor.parent = machineGroup;
 
-    const tempMaterial = new BABYLON.PBRMaterial("tempMaterial", scene);
-    tempMaterial.baseColor = new BABYLON.Color3(1, 0.3, 0.3);
+    const tempMaterial = new BABYLON.StandardMaterial("tempMaterial", scene);
+    tempMaterial.diffuseColor = new BABYLON.Color3(1, 0.3, 0.3);
     tempMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.1, 0.1);
     tempSensor.material = tempMaterial;
     rotatingParts.push({mesh: tempSensor, axis: 'pulse', speed: 0.05, originalPosition: tempSensor.position.clone()});
 
-    // Pressure sensor - pulsing blue
+    // Pressure sensor - glowing blue
     const pressureSensor = BABYLON.MeshBuilder.CreateSphere("pressureSensor", {diameter: 0.2}, scene);
     pressureSensor.position.set(-0.8, 1.2, 0.8);
     pressureSensor.parent = machineGroup;
 
-    const pressureMaterial = new BABYLON.PBRMaterial("pressureMaterial", scene);
-    pressureMaterial.baseColor = new BABYLON.Color3(0.3, 0.3, 1);
+    const pressureMaterial = new BABYLON.StandardMaterial("pressureMaterial", scene);
+    pressureMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.3, 1);
     pressureMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.5);
     pressureSensor.material = pressureMaterial;
     rotatingParts.push({mesh: pressureSensor, axis: 'pulse', speed: 0.07, originalPosition: pressureSensor.position.clone()});
@@ -544,12 +521,13 @@ function createSensorIndicators() {
 function createEnhancedGround() {
     const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
 
-    const groundMaterial = new BABYLON.PBRMaterial("groundMaterial", scene);
-    groundMaterial.baseColor = new BABYLON.Color3(0.1, 0.15, 0.2);
-    groundMaterial.metallic = 0.0;
-    groundMaterial.roughness = 1.0;
+    const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
+    groundMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.15, 0.2);
     ground.material = groundMaterial;
-    ground.receiveShadows = true;
+
+    if (shadowGenerator) {
+        ground.receiveShadows = true;
+    }
 }
 
 function animateMachine() {
@@ -609,20 +587,29 @@ function updateSensorEffects() {
 }
 
 function updatePerformanceDisplay() {
-    if (animationFrame % 60 === 0) { // Update every 60 frames
-        document.getElementById('fpsDisplay').textContent = Math.round(engine.getFps());
-        document.getElementById('drawCallsDisplay').textContent = scene.getActiveMeshes().length;
-        document.getElementById('trianglesDisplay').textContent = scene.getTotalVertices();
+    try {
+        const fpsElement = document.getElementById('fpsDisplay');
+        const drawCallsElement = document.getElementById('drawCallsDisplay');
+        const trianglesElement = document.getElementById('trianglesDisplay');
+
+        if (fpsElement) fpsElement.textContent = Math.round(engine.getFps());
+        if (drawCallsElement) drawCallsElement.textContent = scene.getActiveMeshes().length;
+        if (trianglesElement) trianglesElement.textContent = scene.getTotalVertices();
+    } catch (error) {
+        // Silently handle display update errors
     }
 }
 
-// Event listeners and API calls
+// Event listeners setup
 function setupEventListeners() {
     // Machine selection
-    document.getElementById('machineSelect').addEventListener('change', function(e) {
-        currentMachine = e.target.value;
-        switchMachine(currentMachine);
-    });
+    const machineSelect = document.getElementById('machineSelect');
+    if (machineSelect) {
+        machineSelect.addEventListener('change', function(e) {
+            currentMachine = e.target.value;
+            switchMachine(currentMachine);
+        });
+    }
 
     // VR toggle
     document.getElementById('toggleVR').addEventListener('click', function() {
@@ -639,15 +626,19 @@ function setupEventListeners() {
     });
 
     // Graphics controls
-    document.getElementById('lightingControl').addEventListener('input', function(e) {
-        const intensity = e.target.value / 100;
-        scene.lights.forEach(light => {
-            if (light instanceof BABYLON.DirectionalLight) {
-                light.intensity = intensity * 1.2;
-            }
+    const lightingControl = document.getElementById('lightingControl');
+    if (lightingControl) {
+        lightingControl.addEventListener('input', function(e) {
+            const intensity = e.target.value / 100;
+            scene.lights.forEach(light => {
+                if (light instanceof BABYLON.DirectionalLight) {
+                    light.intensity = intensity * 1.2;
+                }
+            });
+            const lightingValue = document.getElementById('lightingValue');
+            if (lightingValue) lightingValue.textContent = e.target.value + '%';
         });
-        document.getElementById('lightingValue').textContent = e.target.value + '%';
-    });
+    }
 
     document.getElementById('fovControl').addEventListener('input', function(e) {
         camera.fov = (e.target.value * Math.PI) / 180;
@@ -655,9 +646,12 @@ function setupEventListeners() {
     });
 
     // Animation toggle
-    document.getElementById('animationToggle').addEventListener('change', function(e) {
-        animationRunning = e.target.checked;
-    });
+    const animationToggle = document.getElementById('animationToggle');
+    if (animationToggle) {
+        animationToggle.addEventListener('change', function(e) {
+            animationRunning = e.target.checked;
+        });
+    }
 
     // Screenshot
     document.getElementById('captureScreenshot').addEventListener('click', function() {
@@ -668,13 +662,22 @@ function setupEventListeners() {
     document.getElementById('resetView').addEventListener('click', resetView);
 
     // View buttons
-    document.getElementById('frontView').addEventListener('click', () => setView('front'));
-    document.getElementById('topView').addEventListener('click', () => setView('top'));
-    document.getElementById('sideView').addEventListener('click', () => setView('side'));
-    document.getElementById('isoView').addEventListener('click', () => setView('iso'));
+    const frontView = document.getElementById('frontView');
+    const topView = document.getElementById('topView');
+    const sideView = document.getElementById('sideView');
+    const isoView = document.getElementById('isoView');
+    const resetViewButton = document.getElementById('resetView');
+
+    if (frontView) frontView.addEventListener('click', () => setView('front'));
+    if (topView) topView.addEventListener('click', () => setView('top'));
+    if (sideView) sideView.addEventListener('click', () => setView('side'));
+    if (isoView) isoView.addEventListener('click', () => setView('iso'));
+    if (resetViewButton) resetViewButton.addEventListener('click', resetCameraView);
 
     // Additional controls
     setupAdditionalControls();
+
+    console.log("Event listeners setup complete");
 }
 
 function setupAdditionalControls() {
@@ -726,7 +729,25 @@ function setupAdditionalControls() {
 
 function updateMaterialStyle(style) {
     scene.meshes.forEach(mesh => {
-        if (mesh.material && mesh.material instanceof BABYLON.PBRMaterial) {
+        if (mesh.material && mesh.material instanceof BABYLON.StandardMaterial) {
+            switch(style) {
+                case 'metallic':
+                    mesh.material.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                    break;
+                case 'carbon':
+                    mesh.material.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                    break;
+                case 'glass':
+                    mesh.material.alpha = 0.3;
+                    break;
+                case 'ceramic':
+                    mesh.material.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.8);
+                    break;
+                default:
+                    mesh.material.alpha = 1.0;
+                    break;
+            }
+        } else if (mesh.material && mesh.material instanceof BABYLON.PBRMaterial) {
             switch(style) {
                 case 'metallic':
                     mesh.material.metallic = 0.9;
@@ -820,9 +841,12 @@ function simulateVRMode() {
 function switchMachine(machineType) {
     currentMachine = machineType;
     createEnhancedMachine();
+    console.log("Switched to machine:", machineType);
 }
 
 function setView(viewType) {
+    if (!camera) return;
+
     switch (viewType) {
         case 'front':
             camera.position = new BABYLON.Vector3(0, 2, 8);
@@ -843,10 +867,12 @@ function setView(viewType) {
     }
 }
 
-function resetView() {
+function resetCameraView() {
+    if (!camera) return;
+
     camera.position = new BABYLON.Vector3(5, 5, 5);
     camera.setTarget(new BABYLON.Vector3(0, 1, 0));
-    camera.fov = Math.PI / 4;
+    if (camera.fov) camera.fov = Math.PI / 4;
 }
 
 // Data updates
@@ -881,37 +907,52 @@ async function updateSensorData() {
 }
 
 function updateSensorDisplay(data) {
-    document.getElementById('twinTemp').textContent = `${Math.round(data.temperature)}°F`;
-    document.getElementById('twinPressure').textContent = `${data.pressure.toFixed(1)} bar`;
-    document.getElementById('twinVibration').textContent = `${data.vibration.toFixed(2)}`;
-    document.getElementById('twinRpm').textContent = `${Math.round(data.rpm)} rpm`;
-    document.getElementById('twinPower').textContent = `${Math.round(data.power)} kW`;
+    const elements = {
+        twinTemp: document.getElementById('twinTemp'),
+        twinPressure: document.getElementById('twinPressure'),
+        twinVibration: document.getElementById('twinVibration'),
+        twinRpm: document.getElementById('twinRpm'),
+        twinPower: document.getElementById('twinPower'),
+        tempBar: document.getElementById('tempBar'),
+        pressureBar: document.getElementById('pressureBar'),
+        vibrationBar: document.getElementById('vibrationBar'),
+        rpmBar: document.getElementById('rpmBar'),
+        powerBar: document.getElementById('powerBar'),
+        twinStatus: document.getElementById('twinStatus')
+    };
+
+    if (elements.twinTemp) elements.twinTemp.textContent = `${Math.round(data.temperature)}°F`;
+    if (elements.twinPressure) elements.twinPressure.textContent = `${data.pressure.toFixed(1)} bar`;
+    if (elements.twinVibration) elements.twinVibration.textContent = `${data.vibration.toFixed(2)}`;
+    if (elements.twinRpm) elements.twinRpm.textContent = `${Math.round(data.rpm)} rpm`;
+    if (elements.twinPower) elements.twinPower.textContent = `${Math.round(data.power)} kW`;
 
     // Update progress bars
-    document.getElementById('tempBar').style.width = `${Math.min(100, (data.temperature / 150) * 100)}%`;
-    document.getElementById('pressureBar').style.width = `${Math.min(100, (data.pressure / 3) * 100)}%`;
-    document.getElementById('vibrationBar').style.width = `${Math.min(100, (data.vibration / 1.5) * 100)}%`;
-    document.getElementById('rpmBar').style.width = `${Math.min(100, (data.rpm / 3000) * 100)}%`;
-    document.getElementById('powerBar').style.width = `${Math.min(100, (data.power / 200) * 100)}%`;
+    if (elements.tempBar) elements.tempBar.style.width = `${Math.min(100, (data.temperature / 150) * 100)}%`;
+    if (elements.pressureBar) elements.pressureBar.style.width = `${Math.min(100, (data.pressure / 3) * 100)}%`;
+    if (elements.vibrationBar) elements.vibrationBar.style.width = `${Math.min(100, (data.vibration / 1.5) * 100)}%`;
+    if (elements.rpmBar) elements.rpmBar.style.width = `${Math.min(100, (data.rpm / 3000) * 100)}%`;
+    if (elements.powerBar) elements.powerBar.style.width = `${Math.min(100, (data.power / 200) * 100)}%`;
 
     // Update status
-    const statusElement = document.getElementById('twinStatus');
-    statusElement.innerHTML = `<i class="fas fa-circle mr-1"></i>${data.status}`;
-    
-    // Set status color based on status
-    statusElement.className = 'px-2 py-1 rounded-full text-xs font-semibold';
-    if (data.status === 'Operating') {
-        statusElement.className += ' bg-green-500/20 text-green-400';
-    } else if (data.status === 'Warning') {
-        statusElement.className += ' bg-yellow-500/20 text-yellow-400';
-    } else {
-        statusElement.className += ' bg-red-500/20 text-red-400';
+    if (elements.twinStatus) {
+        elements.twinStatus.innerHTML = `<i class="fas fa-circle mr-1"></i>${data.status}`;
+
+        // Set status color based on status
+        elements.twinStatus.className = 'px-2 py-1 rounded-full text-xs font-semibold';
+        if (data.status === 'Operating') {
+            elements.twinStatus.className += ' bg-green-500/20 text-green-400';
+        } else if (data.status === 'Warning') {
+            elements.twinStatus.className += ' bg-yellow-500/20 text-yellow-400';
+        } else {
+            elements.twinStatus.className += ' bg-red-500/20 text-red-400';
+        }
     }
 }
 
 function updateSensorVisualization(data) {
     updateSensorEffects();
-    
+
     // Update machine colors based on status
     if (machineGroup && machineGroup.getChildren) {
         machineGroup.getChildren().forEach(child => {
