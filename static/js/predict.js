@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize risk trend chart
 function initializeChart() {
     const ctx = document.getElementById('riskChart').getContext('2d');
-    
+
     riskChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -64,7 +64,7 @@ function initializeChart() {
             }
         }
     });
-    
+
     // Initialize with empty data
     updateChart([], 50); // 50 is the risk threshold
 }
@@ -72,7 +72,7 @@ function initializeChart() {
 // Setup form submission handler
 function setupFormHandlers() {
     const form = document.getElementById('predictionForm');
-    
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         await runPrediction();
@@ -84,47 +84,47 @@ function setupSliderSync() {
     // Temperature sync
     const tempInput = document.getElementById('temperature');
     const tempRange = document.getElementById('tempRange');
-    
+
     tempInput.addEventListener('input', function() {
         tempRange.value = this.value;
     });
-    
+
     tempRange.addEventListener('input', function() {
         tempInput.value = this.value;
     });
-    
+
     // Pressure sync
     const pressureInput = document.getElementById('pressure');
     const pressureRange = document.getElementById('pressureRange');
-    
+
     pressureInput.addEventListener('input', function() {
         pressureRange.value = this.value;
     });
-    
+
     pressureRange.addEventListener('input', function() {
         pressureInput.value = this.value;
     });
-    
+
     // Vibration sync
     const vibrationInput = document.getElementById('vibration');
     const vibrationRange = document.getElementById('vibrationRange');
-    
+
     vibrationInput.addEventListener('input', function() {
         vibrationRange.value = this.value;
     });
-    
+
     vibrationRange.addEventListener('input', function() {
         vibrationInput.value = this.value;
     });
-    
+
     // Humidity sync
     const humidityInput = document.getElementById('humidity');
     const humidityRange = document.getElementById('humidityRange');
-    
+
     humidityInput.addEventListener('input', function() {
         humidityRange.value = this.value;
     });
-    
+
     humidityRange.addEventListener('input', function() {
         humidityInput.value = this.value;
     });
@@ -146,9 +146,9 @@ function setPreset(presetType) {
     const vibrationRange = document.getElementById('vibrationRange');
     const humidityInput = document.getElementById('humidity');
     const humidityRange = document.getElementById('humidityRange');
-    
+
     let values;
-    
+
     switch (presetType) {
         case 'normal':
             values = { temp: 72, pressure: 1.2, vibration: 0.3, humidity: 45 };
@@ -165,7 +165,7 @@ function setPreset(presetType) {
         default:
             return;
     }
-    
+
     // Set input values
     tempInput.value = values.temp;
     tempRange.value = values.temp;
@@ -175,7 +175,7 @@ function setPreset(presetType) {
     vibrationRange.value = values.vibration;
     humidityInput.value = values.humidity;
     humidityRange.value = values.humidity;
-    
+
     // Add visual feedback
     showPresetFeedback(presetType);
 }
@@ -184,10 +184,10 @@ function setPreset(presetType) {
 function showPresetFeedback(presetType) {
     const button = event.target;
     const originalText = button.textContent;
-    
+
     button.textContent = '✓ Applied';
     button.disabled = true;
-    
+
     setTimeout(() => {
         button.textContent = originalText;
         button.disabled = false;
@@ -201,12 +201,12 @@ async function runPrediction() {
     const predictSpinner = document.getElementById('predictSpinner');
     const initialState = document.getElementById('initialState');
     const predictionResults = document.getElementById('predictionResults');
-    
+
     // Show loading state
     predictBtn.disabled = true;
     predictBtnText.textContent = 'Analyzing...';
     predictSpinner.classList.remove('hidden');
-    
+
     try {
         // Collect form data
         const formData = {
@@ -215,12 +215,12 @@ async function runPrediction() {
             vibration: parseFloat(document.getElementById('vibration').value),
             humidity: parseFloat(document.getElementById('humidity').value)
         };
-        
+
         // Validate input data
         if (!validateInputData(formData)) {
             throw new Error('Invalid input data provided');
         }
-        
+
         // Make API call
         const response = await fetch('/api/predict', {
             method: 'POST',
@@ -229,29 +229,29 @@ async function runPrediction() {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Prediction failed');
         }
-        
+
         const result = await response.json();
-        
+
         // Store prediction in history
         predictionHistory.push({
             timestamp: new Date(),
             input: formData,
             result: result
         });
-        
+
         // Update displays
         displayPredictionResults(result);
         updateChart(predictionHistory, 50);
-        
+
         // Hide initial state and show results
         initialState.classList.add('hidden');
         predictionResults.classList.remove('hidden');
-        
+
     } catch (error) {
         console.error('Prediction error:', error);
         showError(error.message);
@@ -279,11 +279,11 @@ function displayPredictionResults(result) {
     document.getElementById('riskScore').textContent = result.risk_score;
     document.getElementById('riskLevel').textContent = result.risk_level;
     document.getElementById('predictionTime').textContent = new Date(result.timestamp).toLocaleTimeString();
-    
+
     // Color code risk level
     const riskLevelElement = document.getElementById('riskLevel');
     riskLevelElement.className = 'text-lg font-semibold mb-2';
-    
+
     switch (result.risk_level) {
         case 'High Risk':
             riskLevelElement.classList.add('text-red-400');
@@ -297,7 +297,7 @@ function displayPredictionResults(result) {
         default:
             riskLevelElement.classList.add('text-gray-400');
     }
-    
+
     // Display risk factors
     const riskFactorsContainer = document.getElementById('riskFactors');
     if (result.risk_factors && result.risk_factors.length > 0) {
@@ -315,7 +315,7 @@ function displayPredictionResults(result) {
             </div>
         `;
     }
-    
+
     // Display recommendation
     document.getElementById('recommendation').textContent = result.recommendation;
 }
@@ -323,15 +323,15 @@ function displayPredictionResults(result) {
 // Update risk trend chart
 function updateChart(history, threshold) {
     if (!riskChart || !history) return;
-    
+
     const labels = history.map(item => item.timestamp.toLocaleTimeString());
     const scores = history.map(item => item.result.risk_score);
     const thresholdData = new Array(scores.length).fill(threshold);
-    
+
     riskChart.data.labels = labels;
     riskChart.data.datasets[0].data = scores;
     riskChart.data.datasets[1].data = thresholdData;
-    
+
     riskChart.update();
 }
 
@@ -339,10 +339,10 @@ function updateChart(history, threshold) {
 function showError(message) {
     const predictionResults = document.getElementById('predictionResults');
     const initialState = document.getElementById('initialState');
-    
+
     // Hide initial state
     initialState.classList.add('hidden');
-    
+
     // Show error in results area
     predictionResults.innerHTML = `
         <div class="text-center py-12">
@@ -357,9 +357,9 @@ function showError(message) {
             </button>
         </div>
     `;
-    
+
     predictionResults.classList.remove('hidden');
-    
+
     // Auto-hide error after 10 seconds
     setTimeout(() => {
         predictionResults.classList.add('hidden');
@@ -373,7 +373,7 @@ function exportReport() {
         alert('No prediction data to export');
         return;
     }
-    
+
     const reportData = {
         generated_at: new Date().toISOString(),
         predictions: predictionHistory.map(item => ({
@@ -387,11 +387,11 @@ function exportReport() {
             high_risk_count: predictionHistory.filter(item => item.result.risk_level === 'High Risk').length
         }
     };
-    
+
     const blob = new Blob([JSON.stringify(reportData, null, 2)], {
         type: 'application/json'
     });
-    
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

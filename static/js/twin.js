@@ -23,7 +23,7 @@ function initBabylonScene() {
     // Enhanced camera
     camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 15, BABYLON.Vector3.Zero(), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    // Attach controls properly
+    // Fixed: Use attachControl (singular) not attachControls
     camera.attachControl(canvas, true);
     camera.minZ = 0.1;
     camera.wheelPrecision = 50;
