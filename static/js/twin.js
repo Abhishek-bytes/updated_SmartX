@@ -20,10 +20,11 @@ function initBabylonScene() {
     // Create ground before machines
     createEnhancedGround();
 
-    // Enhanced camera with proper controls
+    // Enhanced camera
     camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 15, BABYLON.Vector3.Zero(), scene);
     camera.setTarget(BABYLON.Vector3.Zero());
-    camera.attachControls(canvas, true);
+    // Fixed: Use attachControl (singular) not attachControls
+    camera.attachControl(canvas, true);
     camera.minZ = 0.1;
     camera.wheelPrecision = 50;
 
@@ -52,35 +53,19 @@ function initBabylonScene() {
 }
 
 function setupVR() {
-    // Enhanced VR initialization with WebXR support
+    // VR initialization - basic setup
     try {
-        if (navigator.xr && BABYLON.WebXRSessionManager.IsSessionSupportedAsync) {
-            scene.createDefaultXRExperienceAsync({
-                floorMeshes: [ground]
-            }).then((xrExperience) => {
+        if (scene.createDefaultXRExperienceAsync) {
+            scene.createDefaultXRExperienceAsync().then((xrExperience) => {
                 vrHelper = xrExperience;
                 console.log("VR initialized successfully");
-                
-                // Add teleportation
-                if (xrExperience.teleportation) {
-                    xrExperience.teleportation.addFloorMesh(ground);
-                }
             }).catch((error) => {
                 console.log("VR not supported:", error);
-                setupBasicVR();
             });
-        } else {
-            setupBasicVR();
         }
     } catch (error) {
         console.log("VR setup error:", error);
-        setupBasicVR();
     }
-}
-
-function setupBasicVR() {
-    // Fallback VR simulation
-    console.log("Using basic VR simulation");
 }
 
 function setupEnhancedLighting() {
@@ -102,20 +87,11 @@ function setupEnhancedLighting() {
     pointLight2.diffuse = new BABYLON.Color3(0.8, 0.9, 1);
     pointLight2.intensity = 0.6;
 
-    // Enhanced shadow system
+    // Enable shadows
     try {
         const shadowGenerator = new BABYLON.ShadowGenerator(2048, directionalLight);
         shadowGenerator.useBlurExponentialShadowMap = true;
         shadowGenerator.blurKernel = 32;
-        shadowGenerator.darkness = 0.3;
-        
-        // Enable shadows for ground
-        if (ground) {
-            ground.receiveShadows = true;
-        }
-        
-        // Store for later use
-        scene.shadowGenerator = shadowGenerator;
     } catch (error) {
         console.log("Shadow setup error:", error);
     }
@@ -159,22 +135,17 @@ function createEnhancedMachine() {
 }
 
 function createAdvancedRoboticArm() {
-    // Create realistic 6-DOF robotic arm with enhanced visibility
+    // Create realistic 6-DOF robotic arm based on the GitHub repository design
 
-    // Base platform with better proportions
+    // Base platform
     const basePlatform = BABYLON.MeshBuilder.CreateCylinder("basePlatform", {
-        height: 0.4, 
-        diameterTop: 3.0, 
-        diameterBottom: 3.5, 
+        height: 0.3, 
+        diameterTop: 3.5, 
+        diameterBottom: 4, 
         tessellation: 32
     }, scene);
-    basePlatform.position.y = 0.2;
+    basePlatform.position.y = 0.15;
     basePlatform.parent = machineGroup;
-    
-    // Add to shadow casters
-    if (scene.shadowGenerator) {
-        scene.shadowGenerator.addShadowCaster(basePlatform);
-    }
 
     const baseMaterial = new BABYLON.StandardMaterial("baseMaterial", scene);
     baseMaterial.diffuseColor = new BABYLON.Color3(0.15, 0.2, 0.35);
@@ -1124,8 +1095,7 @@ function startDataUpdates() {
 
 async function updateSensorData() {
     try {
-        // Include current machine type in API call
-        const response = await fetch(`/api/twin-data?machine=${currentMachine}`);
+        const response = await fetch('/api/twin-data');
         const data = await response.json();
         sensorData = data;
 
@@ -1150,26 +1120,11 @@ async function updateSensorData() {
 }
 
 function updateSensorDisplay(data) {
-    // Update sensor readings
     document.getElementById('twinTemp').textContent = `${Math.round(data.temperature)}°F`;
     document.getElementById('twinPressure').textContent = `${data.pressure.toFixed(1)} bar`;
     document.getElementById('twinVibration').textContent = data.vibration.toFixed(2);
     document.getElementById('twinRpm').textContent = `${Math.round(data.rpm)} rpm`;
     document.getElementById('twinPower').textContent = `${Math.round(data.power)} kW`;
-    
-    // Update health score if element exists
-    const healthElement = document.getElementById('healthScore');
-    if (healthElement && data.health_score) {
-        healthElement.textContent = `${data.health_score}%`;
-        // Change color based on health
-        if (data.health_score > 80) {
-            healthElement.className = 'text-green-400 font-semibold';
-        } else if (data.health_score > 60) {
-            healthElement.className = 'text-yellow-400 font-semibold';
-        } else {
-            healthElement.className = 'text-red-400 font-semibold';
-        }
-    }
 
     // Update progress bars
     document.getElementById('tempBar').style.width = `${Math.min(100, (data.temperature / 120) * 100)}%`;
